@@ -123,12 +123,47 @@ contract DEX {
      * NOTE: Equal parts of both assets will be removed from the user's wallet with respect to the price outlined by the AMM.
      */
     function deposit() public payable returns (uint256 tokensDeposited) {
-        
+        require(msg.value > 0, "DEX: deposit - msg.value must be greater than 0");
+        uint256 ethReserve = address(this).balance - msg.value;
+        uint256 tokenReserve = token.balanceOf(address(this));
+
+        uint256 tokenAmountRequired = (msg.value * tokenReserve / ethReserve) + 1;
+
+        require(token.balanceOf(msg.sender) >= tokenAmountRequired, "DEX: deposit - insufficient token balance");
+        require(token.allowance(msg.sender, address(this)) >= tokenAmountRequired, "DEX: deposit - insufficient token allowance");
+
+        uint256 liquidityMinted = (msg.value * totalLiquidity) / ethReserve;
+        liquidity[msg.sender] += liquidityMinted;
+        totalLiquidity += liquidityMinted;
+
+        bool success = token.transferFrom(msg.sender, address(this), tokenAmountRequired);
+        require(success, "DEX: deposit - transfer did not transact");
+
+        emit LiquidityProvided(msg.sender, liquidityMinted, msg.value, tokenAmountRequired);
+        tokensDeposited = tokenAmountRequired;
     }
 
     /**
      * @notice allows withdrawal of $BAL and $ETH from liquidity pool
      * NOTE: with this current code, the msg caller could end up getting very little back if the liquidity is super low in the pool. I guess they could see that with the UI.
      */
-    function withdraw(uint256 amount) public returns (uint256 ethAmount, uint256 tokenAmount) {}
+    function withdraw(uint256 amount) public returns (uint256 ethAmount, uint256 tokenAmount) {
+        require(amount > 0, "DEX: withdraw - amount must be greater than 0");
+        require(liquidity[msg.sender] >= amount, "Dex: withdraw - insufficient liquidity");
+
+        uint256 tokenReserve = token.balanceOf(address(this));
+        uint256 ethReserve = address(this).balance;
+        ethAmount = amount * ethReserve / totalLiquidity;
+        tokenAmount = amount * tokenReserve / totalLiquidity;
+        liquidity[msg.sender] -= amount;
+        totalLiquidity -= amount;
+
+        (bool sent, ) = msg.sender.call{value: ethAmount}("");
+        require(sent, "DEX: withdraw - eth transfer did not transact");
+        bool success = token.transfer(msg.sender, tokenAmount);
+        require(success, "DEX: withdraw - token transfer did not transact");
+
+        emit LiquidityRemoved(msg.sender, amount, tokenAmount, ethAmount);
+
+    }
 }
