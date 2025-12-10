@@ -5,9 +5,11 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title DEX Contract
+ * @title DEX Contract (Decentralized Exchange)
  * @author Rahul Dindigala
- * @dev We want to create an automatic market where our contract will hold reserves of both ETH and 🎈 Balloons. These reserves will provide liquidity that allows anyone to swap between the assets.
+ * @dev We want to create an automatic market where our contract will hold reserves of both ETH and Balloons. These reserves will provide liquidity that allows anyone to swap between the assets.
+ *
+ * @dev We will use a simple AMM to determine the price of the exchange. The product of the reserves must always remain constant (x * y = k).
  */
 contract DEX {
     /* ========== GLOBAL VARIABLES ========== */
@@ -145,7 +147,7 @@ contract DEX {
 
     /**
      * @notice allows withdrawal of $BAL and $ETH from liquidity pool
-     * NOTE: with this current code, the msg caller could end up getting very little back if the liquidity is super low in the pool. I guess they could see that with the UI.
+     * NOTE: with this current code, the msg caller could end up getting very little back if the liquidity is super low in the pool.
      */
     function withdraw(uint256 amount) public returns (uint256 ethAmount, uint256 tokenAmount) {
         require(amount > 0, "DEX: withdraw - amount must be greater than 0");
